@@ -2,155 +2,211 @@ import { faker } from "@faker-js/faker";
 import chalk from "chalk";
 import inquirer from "inquirer";
 
-
-
-// customer class
+// Customer class
 class Customer {
-    firstName: string
-    lastName: string
-    age: number
-    gender: string
-    mobNumber:number
-    accNumber : number
+    firstName: string;
+    lastName: string;
+    age: number;
+    gender: string;
+    mobNumber: number;
+    accNumber: number;
 
-
-    constructor(fName:string,lName:string,age:number,gender:string,mob:number,acc:number){
-        this.firstName = fName
-        this.lastName = lName
-        this.age = age
-        this.gender = gender
-        this.mobNumber = mob
-        this.accNumber = acc
+    constructor(fName: string, lName: string, age: number, gender: string, mob: number, acc: number) {
+        this.firstName = fName;
+        this.lastName = lName;
+        this.age = age;
+        this.gender = gender;
+        this.mobNumber = mob;
+        this.accNumber = acc;
     }
 }
-// interface BankAccount
+
+// Interface BankAccount
 interface BankAccount {
-    accNumber: number,
-    balance: number,
-}
-// class Bank
-class Bank{
-    customer: Customer[] = []
-    account: BankAccount [] = []
-
-    addCustomer(obj:Customer){
-        this.customer.push(obj);
-    }
-
-    addAccountNumber(obj:BankAccount){
-        this.account.push(obj);
-    }
-    transcation(accobj: BankAccount){
-        let NewAccounts = this.account.filter(acc => acc.accNumber !==accobj.accNumber);
-        this.account = [...NewAccounts, accobj];
-    }
+    accNumber: number;
+    balance: number;
 }
 
-let myBank = new Bank();
+// Class Bank
+class Bank {
+    customers: Customer[] = [];
+    accounts: BankAccount[] = [];
 
-//  customer Create 
+    addCustomer(obj: Customer): void {
+        this.customers.push(obj);
+    }
 
-for (let i:number = 1; i<=3; i++){
-    let fName = faker.person.firstName("female");
-    let lName = faker.person.lastName();
-    let num = parseInt(faker.phone.number("3#########"));
+    addAccount(obj: BankAccount): void {
+        this.accounts.push(obj);
+    }
+
+    getCustomerByAccountNumber(accNumber: number): Customer | undefined {
+        return this.customers.find((customer) => customer.accNumber === accNumber);
+    }
+
+    getAccountByAccountNumber(accNumber: number): BankAccount | undefined {
+        return this.accounts.find((account) => account.accNumber === accNumber);
+    }
+
+    performTransaction(accNumber: number, amount: number, transactionType: string): void {
+        const account = this.getAccountByAccountNumber(accNumber);
+
+        if (!account) {
+            console.log(chalk.red.bold.italic("Invalid Account Number"));
+            return;
+        }
+
+        switch (transactionType) {
+            case "withdraw":
+                this.withdraw(account, amount);
+                break;
+            case "deposit":
+                this.deposit(account, amount);
+                break;
+            default:
+                console.log(chalk.red.bold.italic("Invalid Transaction Type"));
+        }
+    }
+
+    private withdraw(account: BankAccount, amount: number): void {
+        if (amount > account.balance) {
+            console.log(chalk.red.bold("Insufficient Balance..."));
+            return;
+        }
+
+        const newBalance = account.balance - amount;
+        this.updateBalance(account.accNumber, newBalance);
+    }
+
+    private deposit(account: BankAccount, amount: number): void {
+        const newBalance = account.balance + amount;
+        this.updateBalance(account.accNumber, newBalance);
+    }
+
+    private updateBalance(accNumber: number, newBalance: number): void {
+        this.accounts = this.accounts.map((acc) =>
+            acc.accNumber === accNumber ? { ...acc, balance: newBalance } : acc
+        );
+        console.log(chalk.bold.blueBright("Transaction successful!"));
+    }
+}
+
+const myBank = new Bank();
+
+// Customer creation
+for (let i = 1; i <= 3; i++) {
+    const fName = faker.person.firstName("female");
+    const lName = faker.person.lastName();
+    const num = parseInt(faker.phone.number());
     const cus = new Customer(fName, lName, 25 * i, "female", num, 1000 + i);
     myBank.addCustomer(cus);
-    myBank.addAccountNumber({
-        accNumber:cus.accNumber,balance:100*i
+    myBank.addAccount({
+        accNumber: cus.accNumber,
+        balance: 100 * i,
     });
-
 }
 
-// bank functionality
-
-async function bankService(bank:Bank) {
-do{
-    let service = await inquirer.prompt({
-        type: "list",
-        name:"select",
-        message:"Please Select the Service",
-        choices:["View Balance","Cash Withdraw", "Cash Deposite", "Exit"]
-    });
-// view balance
-
-    if(service.select == "View Balance"){
-        let res = await inquirer.prompt({
-            type:"input",
-            name:"num",
-            message:"Please Enter your Account Number:",
+// Bank functionality
+async function bankService(bank: Bank): Promise<void> {
+    do {
+        const service = await inquirer.prompt({
+            type: "list",
+            name: "select",
+            message: "Please Select the Service",
+            choices: ["View Balance", "Cash Withdraw", "Cash Deposit", "Transfer Money", "Exit"],
         });
-        let account = myBank.account.find((acc) => acc.accNumber == res.num);
-        if(!account){
-            console.log(chalk.red.bold.italic("Invalid Account Number"));
-        }
-        if(account){
-            let name = myBank.customer.find(
-                (item) => item.accNumber == account?.accNumber
-            );
-            console.log(`Dear ${chalk.green.italic(name?.firstName)} ${chalk.green.italic(name?.lastName)} your Account Balance is ${chalk.bold.blueBright(`${account.balance}`)}`);
-        }
-    }
 
-//  Cash withdraw
-
-    if(service.select == "Cash Withdraw"){
-        let res = await inquirer.prompt({
-            type:"input",
-            name:"num",
-            message:"Please Enter your Account Number:",
-        });
-        let account = myBank.account.find((acc) => acc.accNumber == res.num);
-        if(!account){
-            console.log(chalk.red.bold.italic("Invalid Account Number"));
-        }
-        if(account){
-            let ans = await inquirer.prompt({
-                type:"number",
-                message: "please enter your amount.",
-                name: "rupee",
+        // View balance
+        if (service.select === "View Balance") {
+            const res = await inquirer.prompt({
+                type: "input",
+                name: "num",
+                message: "Please Enter your Account Number:",
             });
-            if(ans.rupee > account.balance){
-                console.log(chalk.red.bold("Insufficient Balance..."))
+            const accountNumber = parseInt(res.num);
+            const account = bank.getAccountByAccountNumber(accountNumber);
+
+            if (!account) {
+                console.log(chalk.red.bold.italic("Invalid Account Number"));
+            } else {
+                const customer = bank.getCustomerByAccountNumber(accountNumber);
+                console.log(
+                    `Dear ${chalk.green.italic(customer?.firstName)} ${chalk.green.italic(
+                        customer?.lastName
+                    )}, your Account Balance is ${chalk.bold.blueBright(`${account.balance}`)}`
+                );
             }
-            let newBalance = account.balance - ans.rupee
-// transaction method
-            bank.transcation({accNumber:account.accNumber,balance:newBalance})
+        }
 
-        } 
-    }
+        // Cash withdraw
+        if (service.select === "Cash Withdraw") {
+            const res = await inquirer.prompt({
+                type: "input",
+                name: "num",
+                message: "Please Enter your Account Number:",
+            });
+            const accountNumber = parseInt(res.num);
+            const amountToWithdraw = await promptForAmount("withdraw");
+            bank.performTransaction(accountNumber, amountToWithdraw, "withdraw");
+        }
 
+        // Cash deposit
+        if (service.select === "Cash Deposit") {
+            const res = await inquirer.prompt({
+                type: "input",
+                name: "num",
+                message: "Please Enter your Account Number:",
+            });
+            const accountNumber = parseInt(res.num);
+            const amountToDeposit = await promptForAmount("deposit");
+            bank.performTransaction(accountNumber, amountToDeposit, "deposit");
+        }
 
-//  Cash Deposit
+        // Transfer money
+        if (service.select === "Transfer Money") {
+            const sourceAccountNumber = await promptForAccountNumber("source");
+            const destinationAccountNumber = await promptForAccountNumber("destination");
+            const amountToTransfer = await promptForAmount("transfer");
 
-if(service.select == "Cash Deposit"){
-    let res = await inquirer.prompt({
-        type:"input",
-        name:"num",
-        message:"Please Enter your Account Number:",
+            const sourceAccount = bank.getAccountByAccountNumber(sourceAccountNumber);
+            const destinationAccount = bank.getAccountByAccountNumber(destinationAccountNumber);
+
+            if (!sourceAccount || !destinationAccount) {
+                console.log(chalk.red.bold.italic("Invalid Account Number"));
+            } else {
+                if (amountToTransfer > sourceAccount.balance) {
+                    console.log(chalk.red.bold("Insufficient Balance for Transfer..."));
+                } else {
+                    bank.performTransaction(sourceAccountNumber, amountToTransfer, "withdraw");
+                    bank.performTransaction(destinationAccountNumber, amountToTransfer, "deposit");
+                }
+            }
+        }
+
+        // Exit
+        if (service.select === "Exit") {
+            return;
+        }
+    } while (true);
+}
+
+async function promptForAmount(transactionType: string): Promise<number> {
+    const answer = await inquirer.prompt({
+        type: "number",
+        message: `Please enter the amount to ${transactionType}:`,
+        name: "amount",
     });
-    let account = myBank.account.find((acc) => acc.accNumber == res.num);
-    if(!account){
-        console.log(chalk.red.bold.italic("Invalid Account Number"));
-    }
-    if(account){
-        let ans = await inquirer.prompt({
-            type:"number",
-            message: "please enter your amount.",
-            name: "rupee",
-        });
-        let newBalance = account.balance + ans.rupee
-// transaction method
-        bank.transcation({accNumber:account.accNumber,balance:newBalance})
-
-    } 
-}
-if(service.select == "Exit"){
-    return;
-}
-}
-while(true)
+    return answer.amount;
 }
 
+async function promptForAccountNumber(accountType: string): Promise<number> {
+    const answer = await inquirer.prompt({
+        type: "input",
+        message: `Please Enter ${accountType} Account Number:`,
+        name: "accountNumber",
+    });
+    return parseInt(answer.accountNumber);
+}
+
+// Run the bank service
 bankService(myBank);
-
